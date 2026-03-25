@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shreejal Dahal | Portfolio</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --card-bg: #1e293b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); line-height: 1.6; }
+        a { color: var(--accent); text-decoration: none; }
+        header { padding: 4rem 2rem; text-align: center; border-bottom: 1px solid #334155; }
+        header h1 { font-size: 3rem; margin-bottom: 0.5rem; }
+        header p { color: var(--text-muted); font-size: 1.2rem; max-width: 600px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        section { margin-bottom: 4rem; }
+        h2 { font-size: 2rem; border-bottom: 2px solid var(--accent); display: inline-block; margin-bottom: 1.5rem; padding-bottom: 0.5rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+        .card { background: var(--card-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid #334155; transition: transform 0.2s; }
+        .card:hover { transform: translateY(-5px); }
+        .card h3 { color: var(--accent); margin-bottom: 0.5rem; }
+        .date { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem; display: block; }
+        ul.skills-list { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        ul.skills-list li { background: #334155; padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.9rem; }
+        footer { text-align: center; padding: 2rem; border-top: 1px solid #334155; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Shreejal Dahal</h1>
+        <p>Aspiring Data Engineer | Computer Engineering MSc Student | Cloud & Distributed Systems</p>
+        <div style="margin-top: 1rem;">
+            <span>📍 Ringsted, Denmark</span> | 
+            <a href="mailto:shreejaldahall@gmail.com">shreejaldahall@gmail.com</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <section id="about">
+            <h2>About Me</h2>
+            <p>I am a Computer Engineering student at Aalborg University, passionate about building scalable data pipelines and distributed systems. With a strong foundation in cloud platforms (Azure, AWS), SQL, and data processing workflows, I leverage my background in network infrastructure and software development to deliver reliable, data-driven solutions.</p>
+        </section>
+
+        <section id="experience">
+            <h2>Experience</h2>
+            <div class="grid">
+                <div class="card">
+                    <h3>SatAir</h3>
+                    <strong>Student Assistant</strong>
+                    <span class="date">Mar 2026 - Present | Kaastrup</span>
+                    <p>Assisting teams with data processes, system optimizations, and enterprise workflows in a global aerospace logistics environment.</p>
+                </div>
+                <div class="card">
+                    <h3>Sajilo Net Pvt. Ltd.</h3>
+                    <strong>Junior NOC Officer</strong>
+                    <span class="date">Dec 2024 - Aug 2025 | Kathmandu, Nepal</span>
+                    <p>Monitored network performance, resolved complex infrastructure issues reducing downtime by 30% for 50+ enterprise clients, and collaborated on root-cause analysis.</p>
+                </div>
+                <div class="card">
+                    <h3>Progressive Labs</h3>
+                    <strong>Android App Developer (Intern)</strong>
+                    <span class="date">Nov 2023 - Jan 2024 | Kathmandu, Nepal</span>
+                    <p>Developed 3 Android applications, optimizing UI responsiveness by 15%, and integrated Firebase and RESTful APIs.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="projects">
+            <h2>Featured Projects</h2>
+            <div class="grid">
+                <div class="card">
+                    <h3>IPv6 Crawler</h3>
+                    <span class="date">Aalborg University | Feb 2026 - Present</span>
+                    <p>Developing an intelligent, closed-loop probing system utilizing machine learning to discover active IPv6 web servers and analyze infrastructure.</p>
+                </div>
+                <div class="card">
+                    <h3>MayDay - Emergency System</h3>
+                    <p>Designed system architecture for coordinating emergency resources, focusing on reliability, distributed systems concepts, and data consistency.</p>
+                </div>
+                <div class="card">
+                    <h3>Departmental Network</h3>
+                    <p>Designed and implemented a complete network including file/web servers, authentication services, and access control.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="skills">
+            <h2>Technical Arsenal</h2>
+            <div class="card" style="margin-bottom: 1rem;">
+                <ul class="skills-list">
+                    <li>Python</li><li>SQL</li><li>Databricks</li><li>ETL Concepts</li>
+                    <li>Azure</li><li>AWS</li><li>Networking (CCNA level)</li><li>Linux</li>
+                    <li>Active Directory</li><li>Android (Java/Kotlin)</li><li>Git</li>
+                </ul>
+            </div>
+        </section>
+        
+        <section id="certifications">
+            <h2>Certifications</h2>
+            <ul>
+                <li>Data Engineer - DataCamp (2026)</li>
+                <li>Data Engineer Associate - DataCamp (2025)</li>
+                <li>AWS Certified Cloud Practitioner (2023)</li>
+                <li>Introduction to Cybersecurity - Cisco (2023)</li>
+            </ul>
+        </section>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 Shreejal Dahal. Built for the future.</p>
+    </footer>
+
+</body>
+</html>
