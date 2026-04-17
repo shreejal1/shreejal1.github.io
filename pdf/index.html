@@ -65,121 +65,122 @@
     <div id="pdf-grid"></div>
 
     <script>
+        <script>
         // Initialize PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-let originalPdfBytes = null;
-const grid = document.getElementById('pdf-grid');
-const uploadInput = document.getElementById('pdf-upload');
-const downloadBtn = document.getElementById('download-btn');
-const loadingText = document.getElementById('loading');
-
-// Handle File Upload
-uploadInput.addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    loadingText.style.display = 'block';
-    grid.innerHTML = '';
-    downloadBtn.disabled = true;
-
-    try {
-        const arrayBuffer = await file.arrayBuffer();
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
-        // FIX: Create a strict Uint8Array copy for PDF-lib to prevent the web worker from detaching the memory buffer
-        originalPdfBytes = new Uint8Array(arrayBuffer);
+        let originalPdfBytes = null;
+        const grid = document.getElementById('pdf-grid');
+        const uploadInput = document.getElementById('pdf-upload');
+        const downloadBtn = document.getElementById('download-btn');
+        const loadingText = document.getElementById('loading');
 
-        // Pass a separate copy to PDF.js for visual rendering
-        const pdfJsData = new Uint8Array(arrayBuffer);
-        const pdf = await pdfjsLib.getDocument({ data: pdfJsData }).promise;
-        
-        // Render each page as a canvas
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const viewport = page.getViewport({ scale: 0.5 }); 
-            
-            const wrapper = document.createElement('div');
-            wrapper.className = 'page-wrapper';
-            wrapper.setAttribute('data-original-index', i - 1); // 0-based for pdf-lib
+        // Handle File Upload
+        uploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
 
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
+            loadingText.style.display = 'block';
+            grid.innerHTML = '';
+            downloadBtn.disabled = true;
 
-            await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                
+                // THE REAL FIX: Create an absolute, deep copy of the raw memory.
+                // This guarantees pdf-lib has its own untouched data for the download phase.
+                originalPdfBytes = arrayBuffer.slice(0);
 
-            const pageNum = document.createElement('div');
-            pageNum.className = 'page-number';
-            pageNum.innerText = i;
+                // Pass the original buffer to PDF.js for visual rendering
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                // Render each page as a canvas
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 0.5 }); 
+                    
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'page-wrapper';
+                    wrapper.setAttribute('data-original-index', i - 1); // 0-based for pdf-lib
 
-            wrapper.appendChild(canvas);
-            wrapper.appendChild(pageNum);
-            grid.appendChild(wrapper);
-        }
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
 
-        // Initialize SortableJS
-        new Sortable(grid, {
-            animation: 150,
-            ghostClass: 'sortable-ghost',
-            dragClass: 'sortable-drag',
-            delay: 0,
-            delayOnTouchOnly: true,
-            touchStartThreshold: 3
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                    const pageNum = document.createElement('div');
+                    pageNum.className = 'page-number';
+                    pageNum.innerText = i;
+
+                    wrapper.appendChild(canvas);
+                    wrapper.appendChild(pageNum);
+                    grid.appendChild(wrapper);
+                }
+
+                // Initialize SortableJS for glitch-free drag and drop
+                new Sortable(grid, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    delay: 0, 
+                    delayOnTouchOnly: true, 
+                    touchStartThreshold: 3
+                });
+
+                downloadBtn.disabled = false;
+            } catch (error) {
+                console.error("Error loading PDF:", error);
+                alert("Could not load the PDF: " + error.message);
+            } finally {
+                loadingText.style.display = 'none';
+            }
         });
 
-        downloadBtn.disabled = false;
-    } catch (error) {
-        console.error("Error loading PDF:", error);
-        alert("Could not load the PDF: " + error.message);
-    } finally {
-        loadingText.style.display = 'none';
-    }
-});
+        // Handle PDF Reconstruction and Download
+        downloadBtn.addEventListener('click', async () => {
+            if (!originalPdfBytes) return;
+            
+            loadingText.innerText = "Generating new PDF...";
+            loadingText.style.display = 'block';
+            downloadBtn.disabled = true;
 
-// Handle PDF Reconstruction and Download
-downloadBtn.addEventListener('click', async () => {
-    if (!originalPdfBytes) return;
-    
-    loadingText.innerText = "Generating new PDF...";
-    loadingText.style.display = 'block';
-    downloadBtn.disabled = true;
+            try {
+                const { PDFDocument } = PDFLib;
+                
+                // Load original document using our safely duplicated memory
+                const pdfDoc = await PDFDocument.load(originalPdfBytes);
+                // Create a blank new document
+                const newPdfDoc = await PDFDocument.create();
 
-    try {
-        const { PDFDocument } = PDFLib;
-        
-        // Load original document using the safe copy
-        const pdfDoc = await PDFDocument.load(originalPdfBytes);
-        // Create a blank new document
-        const newPdfDoc = await PDFDocument.create();
+                // Get the new order from the DOM
+                const wrappers = document.querySelectorAll('.page-wrapper');
+                const newOrderIndices = Array.from(wrappers).map(w => parseInt(w.getAttribute('data-original-index')));
 
-        // Get the new order from the DOM
-        const wrappers = document.querySelectorAll('.page-wrapper');
-        const newOrderIndices = Array.from(wrappers).map(w => parseInt(w.getAttribute('data-original-index')));
+                // Copy pages in the new order
+                const copiedPages = await newPdfDoc.copyPages(pdfDoc, newOrderIndices);
+                copiedPages.forEach(page => newPdfDoc.addPage(page));
 
-        // Copy pages in the new order
-        const copiedPages = await newPdfDoc.copyPages(pdfDoc, newOrderIndices);
-        copiedPages.forEach(page => newPdfDoc.addPage(page));
-
-        // Serialize and trigger download
-        const pdfBytes = await newPdfDoc.save();
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'rearranged_document.pdf';
-        link.click();
-        
-        URL.revokeObjectURL(link.href);
-    } catch (error) {
-        console.error("Error saving PDF:", error);
-        // FIX: Show the exact error message so we know what failed
-        alert("Failed to generate PDF: " + error.message);
-    } finally {
-        loadingText.style.display = 'none';
-        loadingText.innerText = "Processing PDF... Please wait.";
-        downloadBtn.disabled = false;
-    }
-});
+                // Serialize and trigger download
+                const pdfBytes = await newPdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'rearranged_document.pdf';
+                link.click();
+                
+                URL.revokeObjectURL(link.href);
+            } catch (error) {
+                console.error("Error saving PDF:", error);
+                alert("Failed to generate PDF: " + error.message);
+            } finally {
+                loadingText.style.display = 'none';
+                loadingText.innerText = "Processing PDF... Please wait.";
+                downloadBtn.disabled = false;
+            }
+        });
+    </script>
     </script>
 </body>
 </html>
