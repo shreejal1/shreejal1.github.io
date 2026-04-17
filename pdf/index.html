@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Page Rearranger</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --card-bg: #1e293b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); padding: 2rem; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        
+        .header { text-align: center; margin-bottom: 2rem; width: 100%; max-width: 800px; }
+        .header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: var(--accent); }
+        .header p { color: var(--text-muted); }
+        
+        .controls { background: var(--card-bg); padding: 1.5rem; border-radius: 8px; border: 1px solid #334155; width: 100%; max-width: 800px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap; }
+        
+        input[type="file"] { display: none; }
+        .btn { background: var(--accent); color: #0f172a; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: bold; cursor: pointer; transition: opacity 0.2s; font-size: 1rem; }
+        .btn:hover { opacity: 0.9; }
+        .btn-outline { background: transparent; color: var(--accent); border: 2px solid var(--accent); }
+        .btn-outline:hover { background: rgba(56, 189, 248, 0.1); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        #pdf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1.5rem; width: 100%; max-width: 1000px; }
+        
+        .page-wrapper { background: white; border-radius: 4px; padding: 0.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: grab; position: relative; transition: transform 0.1s; display: flex; flex-direction: column; align-items: center; }
+        .page-wrapper:active { cursor: grabbing; transform: scale(1.05); z-index: 10; box-shadow: 0 10px 15px rgba(0,0,0,0.5); }
+        .page-wrapper canvas { max-width: 100%; height: auto; border: 1px solid #e2e8f0; pointer-events: none; }
+        
+        .page-number { position: absolute; bottom: -12px; background: var(--accent); color: #0f172a; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.8rem; border: 2px solid var(--bg-color); }
+        
+        .sortable-ghost { opacity: 0.4; background-color: var(--accent); }
+        .sortable-drag { opacity: 1 !important; }
+
+        #loading { display: none; color: var(--accent); font-weight: bold; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>PDF Rearranger</h1>
+        <p>Upload a PDF, drag and drop the pages to reorder them, and export.</p>
+    </div>
+
+    <div class="controls">
+        <label for="pdf-upload" class="btn btn-outline">
+            📄 Choose PDF File
+        </label>
+        <input type="file" id="pdf-upload" accept="application/pdf" />
+        <button id="download-btn" class="btn" disabled>💾 Download New PDF</button>
+    </div>
+    
+    <div id="loading">Processing PDF... Please wait.</div>
+    <div id="pdf-grid"></div>
+
+    <script>
+        // Initialize PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        
+        let originalPdfBytes = null;
+        const grid = document.getElementById('pdf-grid');
+        const uploadInput = document.getElementById('pdf-upload');
+        const downloadBtn = document.getElementById('download-btn');
+        const loadingText = document.getElementById('loading');
+
+        // Handle File Upload
+        uploadInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            loadingText.style.display = 'block';
+            grid.innerHTML = '';
+            downloadBtn.disabled = true;
+
+            try {
+                // Read file for PDF-lib (manipulation later)
+                const arrayBuffer = await file.arrayBuffer();
+                originalPdfBytes = arrayBuffer;
+
+                // Read file for PDF.js (visual rendering now)
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                
+                // Render each page as a canvas
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const viewport = page.getViewport({ scale: 0.5 }); // Scale down for thumbnails
+                    
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'page-wrapper';
+                    wrapper.setAttribute('data-original-index', i - 1); // 0-based for pdf-lib
+
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+                    const pageNum = document.createElement('div');
+                    pageNum.className = 'page-number';
+                    pageNum.innerText = i;
+
+                    wrapper.appendChild(canvas);
+                    wrapper.appendChild(pageNum);
+                    grid.appendChild(wrapper);
+                }
+
+                // Initialize SortableJS for glitch-free drag and drop
+                new Sortable(grid, {
+                    animation: 150,
+                    ghostClass: 'sortable-ghost',
+                    dragClass: 'sortable-drag',
+                    delay: 0, // No delay for desktop
+                    delayOnTouchOnly: true, // Slight delay on mobile to allow scrolling
+                    touchStartThreshold: 3
+                });
+
+                downloadBtn.disabled = false;
+            } catch (error) {
+                console.error("Error loading PDF:", error);
+                alert("Could not load the PDF. Please try another file.");
+            } finally {
+                loadingText.style.display = 'none';
+            }
+        });
+
+        // Handle PDF Reconstruction and Download
+        downloadBtn.addEventListener('click', async () => {
+            if (!originalPdfBytes) return;
+            
+            loadingText.innerText = "Generating new PDF...";
+            loadingText.style.display = 'block';
+            downloadBtn.disabled = true;
+
+            try {
+                const { PDFDocument } = PDFLib;
+                
+                // Load original document
+                const pdfDoc = await PDFDocument.load(originalPdfBytes);
+                // Create a blank new document
+                const newPdfDoc = await PDFDocument.create();
+
+                // Get the new order from the DOM
+                const wrappers = document.querySelectorAll('.page-wrapper');
+                const newOrderIndices = Array.from(wrappers).map(w => parseInt(w.getAttribute('data-original-index')));
+
+                // Copy pages in the new order
+                const copiedPages = await newPdfDoc.copyPages(pdfDoc, newOrderIndices);
+                copiedPages.forEach(page => newPdfDoc.addPage(page));
+
+                // Serialize and trigger download
+                const pdfBytes = await newPdfDoc.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = 'rearranged_document.pdf';
+                link.click();
+                
+                URL.revokeObjectURL(link.href);
+            } catch (error) {
+                console.error("Error saving PDF:", error);
+                alert("There was an error generating your PDF.");
+            } finally {
+                loadingText.style.display = 'none';
+                loadingText.innerText = "Processing PDF... Please wait.";
+                downloadBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
