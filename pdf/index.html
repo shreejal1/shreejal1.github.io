@@ -19,6 +19,40 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-main); padding: 2rem; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+
+        /* Password Gate */
+        #password-overlay {
+            position: fixed; inset: 0; background: rgba(15, 23, 42, 0.97);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
+        }
+        #password-box {
+            background: var(--card-bg); border: 1px solid #334155; border-radius: 12px;
+            padding: 2.5rem 2rem; width: 100%; max-width: 380px; text-align: center;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+        }
+        #password-box h2 { color: var(--accent); font-size: 1.6rem; margin-bottom: 0.5rem; }
+        #password-box p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; }
+        #password-input {
+            width: 100%; padding: 0.75rem 1rem; border-radius: 6px;
+            border: 1px solid #334155; background: #0f172a; color: var(--text-main);
+            font-size: 1rem; outline: none; margin-bottom: 0.75rem;
+            transition: border-color 0.2s;
+        }
+        #password-input:focus { border-color: var(--accent); }
+        #password-input.error { border-color: #ef4444; }
+        #password-error {
+            color: #ef4444; font-size: 0.88rem; margin-bottom: 0.75rem;
+            min-height: 1.2em; display: none;
+        }
+        #unlock-btn {
+            width: 100%; background: var(--accent); color: #0f172a; border: none;
+            padding: 0.75rem; border-radius: 6px; font-weight: bold; font-size: 1rem;
+            cursor: pointer; transition: opacity 0.2s;
+        }
+        #unlock-btn:hover { opacity: 0.9; }
+
+        #page-content { display: none; flex-direction: column; align-items: center; width: 100%; }
         
         .header { text-align: center; margin-bottom: 2rem; width: 100%; max-width: 800px; }
         .header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; color: var(--accent); }
@@ -54,6 +88,19 @@
 </head>
 <body>
 
+    <!-- Password Gate Overlay -->
+    <div id="password-overlay">
+        <div id="password-box">
+            <h2>🔒 Access Required</h2>
+            <p>Please enter the password to continue.</p>
+            <input type="password" id="password-input" placeholder="Enter password" autocomplete="off" />
+            <div id="password-error">Incorrect password. Please try again.</div>
+            <button id="unlock-btn">Unlock</button>
+        </div>
+    </div>
+
+    <!-- Protected Page Content -->
+    <div id="page-content">
     <div class="header">
         <h1>PDF Rearranger</h1>
         <p>Upload a PDF, reorder pages manually, or automatically sort for 9-page double-sided booklets.</p>
@@ -74,6 +121,42 @@
     
     <div id="loading">Processing... Please wait.</div>
     <div id="pdf-grid"></div>
+    </div><!-- end #page-content -->
+
+    <script>
+        // Password Gate
+        (function () {
+            var overlay = document.getElementById('password-overlay');
+            var input = document.getElementById('password-input');
+            var errorMsg = document.getElementById('password-error');
+            var unlockBtn = document.getElementById('unlock-btn');
+            var content = document.getElementById('page-content');
+
+            function attempt() {
+                if (input.value === 'anushree123') {
+                    overlay.style.display = 'none';
+                    content.style.display = 'flex';
+                    input.value = '';
+                } else {
+                    input.classList.add('error');
+                    errorMsg.style.display = 'block';
+                    input.select();
+                }
+            }
+
+            unlockBtn.addEventListener('click', attempt);
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') attempt();
+                if (input.classList.contains('error')) {
+                    input.classList.remove('error');
+                    errorMsg.style.display = 'none';
+                }
+            });
+
+            // Auto-focus the input when the page loads
+            input.focus();
+        })();
+    </script>
 
     <script>
         // Initialize PDF.js worker
