@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Converter</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-lg w-full">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2 text-center">Convert to PDF</h1>
+        <p class="text-gray-500 text-sm text-center mb-6">100% Free. Powered by Google Apps Script.</p>
+
+        <!-- Dropzone -->
+        <div id="dropzone" class="border-2 border-dashed border-blue-300 rounded-lg p-10 text-center cursor-pointer hover:bg-blue-50 transition-colors">
+            <svg class="mx-auto h-12 w-12 text-blue-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+            <p class="text-gray-600 font-medium">Click to upload or drag and drop</p>
+            <p class="text-xs text-gray-400 mt-1">Supports .doc, .docx, .ppt, .pptx</p>
+            <input type="file" id="fileInput" class="hidden" accept=".doc,.docx,.ppt,.pptx">
+        </div>
+
+        <!-- Status & Download -->
+        <div id="statusArea" class="mt-6 hidden text-center">
+            <p id="statusText" class="text-sm font-medium text-blue-600 mb-3">Uploading to server...</p>
+            <a id="downloadBtn" href="#" class="hidden inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 w-full">
+                Download PDF
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // --- PASTE YOUR GOOGLE WEB APP URL HERE ---
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXmXyCtlD1RRSs0kyOAePXGQeeTfqcQpwe5FovdTkGy6hzPer1J7u2cLlSKjr5e35Y/exec';
+        // ------------------------------------------
+
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const statusArea = document.getElementById('statusArea');
+        const statusText = document.getElementById('statusText');
+        const downloadBtn = document.getElementById('downloadBtn');
+
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('bg-blue-100'); });
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('bg-blue-100'));
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('bg-blue-100');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        async function handleFile(file) {
+            statusArea.classList.remove('hidden');
+            downloadBtn.classList.add('hidden');
+            statusText.textContent = `Converting ${file.name}... this takes a moment.`;
+            statusText.className = 'text-sm font-medium text-blue-600 mb-3';
+
+            try {
+                // Convert file to base64
+                const base64String = await toBase64(file);
+                // Strip out the data url prefix (e.g., "data:application/pdf;base64,")
+                const pureBase64 = base64String.split(',')[1];
+
+                // Pack data into standard FormData to bypass strict CORS preflight rules
+                const formData = new FormData();
+                formData.append('fileName', file.name);
+                formData.append('mimeType', file.type || 'application/octet-stream');
+                formData.append('base64', pureBase64);
+
+                // Send to Google Apps Script
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.status !== 'success') {
+                    throw new Error(result.message || 'Conversion failed on server.');
+                }
+
+                // Decode the returned base64 PDF and trigger download
+                const pdfBlob = base64ToBlob(result.pdfBase64, 'application/pdf');
+                const url = window.URL.createObjectURL(pdfBlob);
+                
+                statusText.textContent = 'Conversion Complete!';
+                statusText.className = 'text-sm font-medium text-green-600 mb-3';
+                
+                downloadBtn.href = url;
+                downloadBtn.download = file.name.replace(/\.[^/.]+$/, "") + ".pdf";
+                downloadBtn.classList.remove('hidden');
+
+            } catch (error) {
+                statusText.textContent = 'Error: ' + error.message;
+                statusText.className = 'text-sm font-medium text-red-600 mb-3';
+                console.error(error);
+            }
+        }
+
+        // Helper: Convert file to Base64
+        function toBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Helper: Convert Base64 back to a downloadable Blob
+        function base64ToBlob(base64, mime) {
+            const byteCharacters = atob(base64);
+            const byteArrays = [];
+            for (let i = 0; i < byteCharacters.length; i += 512) {
+                const slice = byteCharacters.slice(i, i + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let j = 0; j < slice.length; j++) {
+                    byteNumbers[j] = slice.charCodeAt(j);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            return new Blob(byteArrays, {type: mime});
+        }
+    </script>
+</body>
+</html>
